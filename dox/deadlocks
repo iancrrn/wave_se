@@ -1,0 +1,54 @@
+Race Conditions
+
+A race condition occurs when two threads access a shared variable at the same time. The first thread reads the variable, and the second thread reads the same value from the variable. Then the first thread and second thread perform their operations on the value, and they race to see which thread can write the value last to the shared variable. The value of the thread that writes its value last is preserved, because the thread is writing over the value that the previous thread wrote.
+
+Deadlocking
+
+A deadlock occurs when two or more tasks permanently block each other by each task having a lock on a resource which the other tasks are trying to lock. For example:
+Transaction A acquires a share lock on row 1.
+Transaction B acquires a share lock on row 2.
+Transaction A now requests an exclusive lock on row 2, and is blocked until transaction B finishes and releases the share lock it has on row 2.
+Transaction B now requests an exclusive lock on row 1, and is blocked until transaction A finishes and releases the share lock it has on row 1.
+Transaction A cannot complete until transaction B completes, but transaction B is blocked by transaction A. This condition is also called a cyclic dependency: Transaction A has a dependency on transaction B, and transaction B closes the circle by having a dependency on transaction A.
+Both transactions in a deadlock will wait forever unless the deadlock is broken by an external process. The Microsoft SQL Server Database Engine deadlock monitor periodically checks for tasks that are in a deadlock. If the monitor detects a cyclic dependency, it chooses one of the tasks as a victim and terminates its transaction with an error. This allows the other task to complete its transaction. The application with the transaction that terminated with an error can retry the transaction, which usually completes after the other deadlocked transaction has finished.
+Using certain coding conventions in applications reduces the chance that applications will cause deadlocks. For more information, see Minimizing Deadlocks.
+Deadlocking is often confused with normal blocking. When a transaction requests a lock on a resource locked by another transaction, the requesting transaction waits until the lock is released. By default, SQL Server transactions do not time out, unless LOCK_TIMEOUT is set. The requesting transaction is blocked, not deadlocked, because the requesting transaction has not done anything to block the transaction owning the lock. Eventually, the owning transaction will complete and release the lock, and then the requesting transaction will be granted the lock and proceed.
+Deadlocks are sometimes called a deadly embrace.
+Deadlock is a condition that can occur on any system with multiple threads, not just on a relational database management system, and can occur for resources other than locks on database objects. For example, a thread in a multithreaded operating system might acquire one or more resources, such as blocks of memory. If the resource being acquired is currently owned by another thread, the first thread may have to wait for the owning thread to release the target resource. The waiting thread is said to have a dependency on the owning thread for that particular resource. In an instance of the Database Engine, sessions can deadlock when acquiring nondatabase resources, such as memory or threads.
+Diagram showing transaction deadlock
+In the illustration, transaction T1 has a dependency on transaction T2 for the Part table lock resource. Similarly, transaction T2 has a dependency on transaction T1 for the Supplier table lock resource. Because these dependencies form a cycle, there is a deadlock between transactions T1 and T2.
+Deadlocks can also occur when a table is partitioned and the LOCK_ESCALATION setting of ALTER TABLE is set to AUTO. When LOCK_ESCALATION is set to AUTO, concurrency increases by allowing the Database Engine to lock table partitions at the HoBT level instead of at the TABLE level. However, when separate transactions hold partition locks in a table and want a lock somewhere on the other transactions partition, this causes a deadlock. This type of deadlock can be avoided by setting LOCK_ESCALATION to TABLE; although this setting will reduce concurrency by forcing large updates to a partition to wait for a table lock.
+
+Minimizing Deadlocks
+
+Although deadlocks cannot be completely avoided, following certain coding conventions can minimize the chance of generating a deadlock. Minimizing deadlocks can increase transaction throughput and reduce system overhead because fewer transactions are:
+Rolled back, undoing all the work performed by the transaction.
+Resubmitted by applications because they were rolled back when deadlocked.
+To help minimize deadlocks:
+Access objects in the same order.
+Avoid user interaction in transactions.
+Keep transactions short and in one batch.
+Use a lower isolation level.
+Use a row versioning-based isolation level.
+Set READ_COMMITTED_SNAPSHOT database option ON to enable read-committed transactions to use row versioning.
+Use snapshot isolation.
+Use bound connections.
+Access Objects in the Same Order
+If all concurrent transactions access objects in the same order, deadlocks are less likely to occur. For example, if two concurrent transactions obtain a lock on the Supplier table and then on the Part table, one transaction is blocked on the Supplier table until the other transaction is completed. After the first transaction commits or rolls back, the second continues, and a deadlock does not occur. Using stored procedures for all data modifications can standardize the order of accessing objects.
+Diagram showing deadlock avoidance
+Avoid User Interaction in Transactions
+Avoid writing transactions that include user interaction, because the speed of batches running without user intervention is much faster than the speed at which a user must manually respond to queries, such as replying to a prompt for a parameter requested by an application. For example, if a transaction is waiting for user input and the user goes to lunch or even home for the weekend, the user delays the transaction from completing. This degrades system throughput because any locks held by the transaction are released only when the transaction is committed or rolled back. Even if a deadlock situation does not arise, other transactions accessing the same resources are blocked while waiting for the transaction to complete.
+Keep Transactions Short and in One Batch
+A deadlock typically occurs when several long-running transactions execute concurrently in the same database. The longer the transaction, the longer the exclusive or update locks are held, blocking other activity and leading to possible deadlock situations.
+Keeping transactions in one batch minimizes network roundtrips during a transaction, reducing possible delays in completing the transaction and releasing locks.
+Use a Lower Isolation Level
+Determine whether a transaction can run at a lower isolation level. Implementing read committed allows a transaction to read data previously read (not modified) by another transaction without waiting for the first transaction to complete. Using a lower isolation level, such as read committed, holds shared locks for a shorter duration than a higher isolation level, such as serializable. This reduces locking contention.
+Use a Row Versioning-based Isolation Level
+When the READ_COMMITTED_SNAPSHOT database option is set ON, a transaction running under read committed isolation level uses row versioning rather than shared locks during read operations.
+NoteNote
+Some applications rely upon locking and blocking behavior of read committed isolation. For these applications, some change is required before this option can be enabled.
+Snapshot isolation also uses row versioning, which does not use shared locks during read operations. Before a transaction can run under snapshot isolation, the ALLOW_SNAPSHOT_ISOLATION database option must be set ON.
+Implement these isolation levels to minimize deadlocks that can occur between read and write operations.
+Use Bound Connections
+Using bound connections, two or more connections opened by the same application can cooperate with each other. Any locks acquired by the secondary connections are held as if they were acquired by the primary connection, and vice versa. Therefore they do not block each other.
+

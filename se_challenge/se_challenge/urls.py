@@ -31,3 +31,28 @@ if settings.DEBUG:
     urlpatterns += [
         url(r'^__debug__/', include(debug_toolbar.urls)),
     ]
+
+
+
+# Reference
+"""
+urlpatterns = [
+    # ex: /polls/
+    url(r'^$', views.index, name='index'),
+    # ex: /polls/5/
+    url(r'^(?P<question_id>[0-9]+)/$', views.detail, name='detail'),
+    # ex: /polls/5/results/
+    url(r'^(?P<question_id>[0-9]+)/results/$', views.results, name='results'),
+    # ex: /polls/5/vote/
+    url(r'^(?P<question_id>[0-9]+)/vote/$', views.vote, name='vote'),
+]
+
+detail(request=<HttpRequest object>, question_id='34')
+
+def detail(request, question_id):
+    try:
+        question = Question.objects.get(pk=question_id)
+    except Question.DoesNotExist:
+        raise Http404("Question does not exist")
+    return render(request, 'polls/detail.html', {'question': question})
+"""
